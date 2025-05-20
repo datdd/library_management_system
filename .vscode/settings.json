@@ -1,0 +1,17 @@
+{
+  "files.associations": {
+    ".clang-format": "cpp",
+    "typeinfo": "cpp",
+    "any": "cpp",
+    "optional": "cpp",
+    "iostream": "cpp",
+    "array": "cpp",
+    "memory": "cpp",
+    "istream": "cpp",
+    "ranges": "cpp",
+    "functional": "cpp",
+    "tuple": "cpp",
+    "utility": "cpp",
+    "variant": "cpp"
+  }
+}
