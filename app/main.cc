@@ -7,9 +7,9 @@
 #include <vector>
 
 // Domain Core (for exceptions, enums, etc. that might be caught or used directly)
+#include "domain_core/book.h"            // For Book class
 #include "domain_core/i_library_item.h"  // For AvailabilityStatus enum to string
 #include "domain_core/types.h"
-#include "domain_core/book.h"  // For Book class
 
 // Service Interfaces (though we'll be creating concrete ones)
 // Not strictly needed to include interfaces if we only use concrete types here,
@@ -19,7 +19,7 @@
 #include "catalog_service/catalog_service.h"
 #include "loan_service/loan_service.h"
 #include "notification_service/console_notification_service.h"
-#include "persistence_service/in_memory_persistence_service.h"
+#include "persistence_service/caching_file_persistence_service.h"
 #include "user_service/user_service.h"
 #include "utils/date_time_utils.h"
 
@@ -100,10 +100,12 @@ std::vector<std::string> readCommandArgs(const std::string& line) {
 }
 
 int main() {
+  std::string data_path = "./lms_data/";
   // 1. Instantiate services
-  auto persistence_service =
-      std::make_shared<lms::persistence_service::InMemoryPersistenceService>();
   auto date_time_utils = std::make_shared<lms::utils::DateTimeUtils>();
+  auto persistence_service =
+      std::make_shared<lms::persistence_service::CachingFilePersistenceService>(data_path,
+                                                                                date_time_utils);
 
   auto user_service = std::make_shared<lms::user_service::UserService>(persistence_service);
   auto catalog_service =
@@ -264,6 +266,12 @@ int main() {
         std::cout << "Checking for overdue items and sending notifications..." << std::endl;
         loan_service->processOverdueItems();
         std::cout << "Overdue check complete. Check console for notifications." << std::endl;
+      } else if (command == "saveall") {
+        persistence_service->persistAllToFile();
+        std::cout << "All data saved to files." << std::endl;
+      } else if (command == "loadall") {
+        persistence_service->loadAllFromFileToMemory();
+        std::cout << "All data loaded from files." << std::endl;
       } else {
         std::cout << "Unknown command or incorrect arguments. Type 'help' for commands."
                   << std::endl;

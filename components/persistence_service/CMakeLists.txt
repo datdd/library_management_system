@@ -2,7 +2,8 @@
 
 add_library(persistence_service_lib
     src/in_memory_persistence_service.cc
-    # Add other persistence implementations (e.g., file_persistence_service.cc) later
+    src/file_persistence_service.cc
+    src/caching_file_persistence_service.cc
 )
 
 target_include_directories(persistence_service_lib
@@ -11,11 +12,8 @@ target_include_directories(persistence_service_lib
         $<INSTALL_INTERFACE:include>
 )
 
-# persistence_service needs to know about the domain core entities
 target_link_libraries(persistence_service_lib
     PUBLIC
-        domain_core_lib # To use Author, Book, User, LoanRecord, ILibraryItem types
+        domain_core_lib
+        utils_lib # FilePersistenceService will use DateTimeUtils
 )
-
-# If we use utils (e.g. for logging or specific file operations in other persistors)
-# target_link_libraries(persistence_service_lib PUBLIC utils_lib)
