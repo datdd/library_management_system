@@ -1,10 +1,10 @@
 #include "persistence_service/odbc_wrapper.h"
-#include <iostream>  // For cerr
+#include <algorithm>  // For std::transform
+#include <iostream>   // For cerr
 #include <vector>
 
 namespace odbc_wrapper {
 
-// --- OdbcException Implementation ---
 std::string OdbcException::GetDiagMessages(SQLSMALLINT handle_type, SQLHANDLE handle) {
   SQLCHAR sql_state[6];
   SQLINTEGER native_error;
@@ -282,7 +282,13 @@ void ResultSet::fetchColumnInfo() {
     checkRc(SQLDescribeCol(m_hstmt, i, col_name_buf, sizeof(col_name_buf), &name_len, nullptr,
                            nullptr, nullptr, nullptr),
             "Describe Column " + std::to_string(i));
-    m_col_name_to_index[std::string(reinterpret_cast<char*>(col_name_buf), name_len)] = i;
+    std::string fetched_col_name_str(reinterpret_cast<char*>(col_name_buf), name_len);
+    std::transform(fetched_col_name_str.begin(), fetched_col_name_str.end(),
+                   fetched_col_name_str.begin(),
+                   [](unsigned char c) { return std::tolower(c); });  // Normalize to lowercase
+    // std::cout << "ODBC_WRAPPER DEBUG: Storing normalized map key: '" << fetched_col_name_str
+    //           << "' for original index " << i << std::endl;
+    m_col_name_to_index[fetched_col_name_str] = i;
   }
 }
 
@@ -301,19 +307,42 @@ std::string ResultSet::getString(SQLUSMALLINT col_index) {
 
   SQLCHAR buffer[1024];  // Adjust buffer size as needed
   SQLLEN indicator;      // Will hold length of data or SQL_NULL_DATA
-  checkRc(SQLGetData(m_hstmt, col_index, SQL_C_CHAR, buffer, sizeof(buffer), &indicator),
-          "Get String Data Col " + std::to_string(col_index));
+  SQLRETURN rc = SQLGetData(m_hstmt, col_index, SQL_C_CHAR, buffer, sizeof(buffer), &indicator);
+  checkRc(rc, "Get String Data Col " + std::to_string(col_index));
+  // std::cout << "ODBC_WRAPPER DEBUG: Col " << col_index
+  //           << " - SQLGetData rc: " << rc  // print return code of SQLGetData
+  //           << ", Indicator: " << indicator << std::endl;
   if (indicator == SQL_NULL_DATA)
     return "";  // Should have been caught by isNull
   return std::string(reinterpret_cast<char*>(buffer), indicator);
 }
 
+// odbc_wrapper_impl.cc
 std::string ResultSet::getString(const std::string& col_name) {
-  auto it = m_col_name_to_index.find(col_name);
+  std::string normalized_col_name_to_find = col_name;
+  std::transform(normalized_col_name_to_find.begin(), normalized_col_name_to_find.end(),
+                 normalized_col_name_to_find.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+
+  auto it = m_col_name_to_index.find(normalized_col_name_to_find);
   if (it == m_col_name_to_index.end()) {
-    throw OdbcException("Column not found: " + col_name, SQL_HANDLE_STMT, m_hstmt);
+    std::string known_cols_msg;
+    for (const auto& pair : m_col_name_to_index) {
+      known_cols_msg += "'" + pair.first + "'(" + std::to_string(pair.second) + ") ";
+    }
+    // Make this throw very clearly if not found
+    throw OdbcException("Column name not found: '" + col_name + "' (Normalized lookup: '" +
+                            normalized_col_name_to_find +
+                            "'). "
+                            "Known columns in map: " +
+                            (known_cols_msg.empty() ? "None or map empty!" : known_cols_msg),
+                        SQL_HANDLE_STMT, m_hstmt);
   }
-  return getString(it->second);
+  // If found, print the index we are about to use
+  // std::cout << "ODBC_WRAPPER DEBUG: Found column '" << normalized_col_name_to_find << "' at index
+  // "
+  //           << it->second << std::endl;
+  return getString(it->second);  // Calls getString(SQLUSMALLINT col_index)
 }
 
 int ResultSet::getInt(SQLUSMALLINT col_index) {

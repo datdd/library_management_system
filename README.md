@@ -31,7 +31,7 @@ make
 ### Run
 
 ```sh
-./library_management_system
+./app/lms_app
 ```
 
 ## Development

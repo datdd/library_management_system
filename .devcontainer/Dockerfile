@@ -20,3 +20,5 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
 # Install the Microsoft ODBC Driver for SQL Server
 COPY ./install-msodbcsql.sh /tmp/
 RUN chmod +x /tmp/install-msodbcsql.sh && /tmp/install-msodbcsql.sh
+
+RUN apt-get update && apt-get install -y clang-format

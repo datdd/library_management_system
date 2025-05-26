@@ -409,7 +409,10 @@ std::vector<User> MsSqlPersistenceService::loadAllUsers() {
     if (rs_ptr) {
       while (rs_ptr->next()) {
         try {
-          users.emplace_back(rs_ptr->getString("UserId"), rs_ptr->getString("Name"));
+          std::string user_id = rs_ptr->getString("UserId");
+          std::string user_name = rs_ptr->getString("Name");
+          users.emplace_back(user_id, user_name);
+          // users.emplace_back(rs_ptr->getString(1), rs_ptr->getString(2));
         } catch (const InvalidArgumentException& domain_ex) {
           std::cerr << "MsSqlPersistenceService: Skipping invalid user from DB: "
                     << domain_ex.what() << std::endl;
